@@ -42,6 +42,8 @@
 
 (component_render) @function.call
 
+(element_identifier) @tag.identifier
+
 (element_comment) @comment @spell
 
 [
