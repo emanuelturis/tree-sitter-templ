@@ -1,4 +1,6 @@
+; https://github.com/nvim-treesitter/nvim-treesitter/blob/master/queries/templ/highlights.scm
 ; inherits: go
+
 (component_declaration
   name: (component_identifier) @function)
 
@@ -8,6 +10,8 @@
   (self_closing_tag)
   (style_element)
 ] @tag
+
+(doctype) @constant
 
 (attribute
   name: (attribute_name) @tag.attribute)
@@ -39,6 +43,14 @@
 (component_render) @function.call
 
 (element_comment) @comment @spell
+
+[
+  "<"
+  ">"
+  "</"
+  "/>"
+  "<!"
+] @tag.delimiter
 
 "@" @operator
 
