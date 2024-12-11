@@ -7,8 +7,6 @@ const GO = require("tree-sitter-go/grammar")
 module.exports = grammar(GO, {
     name: 'templ',
 
-    word: $ => $.identifier,
-
     externals: $ => [
         $.css_property_value,
         $.element_text,
@@ -16,6 +14,7 @@ module.exports = grammar(GO, {
         $.style_element_text,
         $.script_block_text,
         $.script_element_text,
+        $.switch_element_text,
     ],
 
     conflicts: ($, original) => [
@@ -86,10 +85,27 @@ module.exports = grammar(GO, {
             $.component_for_statement,
             $.component_switch_statement,
             $.component_import,
+            $.rawgo_block,
             $.component_render,
             $.component_children_expression,
             $.expression,
             $.element_text,
+            $.element_comment,
+            prec.right(1, $.comment),
+        ),
+        _switch_component_node: $ => choice(
+            $.element,
+            $.style_element,
+            $.script_element,
+            $.component_if_statement,
+            $.component_for_statement,
+            $.component_switch_statement,
+            $.component_import,
+            $.rawgo_block,
+            $.component_render,
+            $.component_children_expression,
+            $.expression,
+            alias($.switch_element_text, $.element_text),
             $.element_comment,
             prec.right(1, $.comment),
         ),
@@ -146,12 +162,12 @@ module.exports = grammar(GO, {
             'case',
             field('value', $.expression_list),
             ':',
-            optional($._component_node),
+            repeat($._switch_component_node),
         )),
         component_switch_default_case: $ => prec.right(seq(
             'default',
             ':',
-            optional($._component_node),
+            repeat($._switch_component_node),
         )),
 
         // This matches an import statement:
@@ -160,28 +176,36 @@ module.exports = grammar(GO, {
         //     @Foobar(a, b, c) { ... }
         //     @pkg.Foobar(a, b, c)
         //     @pkg.Foobar(a, b, c) { ... }
+        //     @pkg.Foo.Bar(a, b, c)
+        //     @pkg.Foo.Bar(a, b, c) { ... }
+        //     @pkg.Foo{}.Bar(a, b, c)
+        //     @pkg.Foo{}.Bar(a, b, c) { ... }
         //
         // Note that we use $._package_identifier and $.argument_list which are from the Go grammar.
-        //
-        // TODO(vincent): this doesn't handle importing components defined as fields in a struct correctly.
-        // Something like this:
-        //
-        //     @foo.bar.baz(a, b, c)
-        //
-        // Fails to parse.
-        component_import: $ => prec.right(seq(
+        component_import: $ => prec.right(1, seq(
             '@',
-            choice(
-                seq(
-                    field('package', $._package_identifier),
-                    '.',
-                    field('name', $._component_identifier),
-                ),
-                field('name', $._component_identifier),
-            ),
-            optional(field('arguments', $.argument_list)),
+            optional(seq(
+              field('package', $._package_identifier),
+              '.',
+            )),
+            field('name', $._component_member),
+            repeat(seq(
+              '.',
+              field('name', $._component_member)
+            )),
             optional(field('body', $.component_block)),
         )),
+        _component_member: $ => choice(
+            seq(
+                field('name', $._component_identifier),
+                field('body', $.literal_value)
+            ),
+            seq(
+                field('name', $._component_identifier),
+                field('arguments', $.argument_list)
+            ),
+            prec.right(-1, $._component_identifier)
+        ),
 
         // This matches a render statement:
         //
@@ -244,21 +268,28 @@ module.exports = grammar(GO, {
 
         style_element: $ => choice(
             seq(
-                '<',
-                field('name', 'style'),
-                repeat($._attribute),
-                '>',
-                optional($.style_element_text),
-                '</',
-                'style',
-                '>'
+                $.style_tag_start,
+                repeat($.style_element_text),
+                $.style_tag_end,
             ),
-            seq(
-                '<',
-                field('name', 'style'),
-                repeat($._attribute),
-                '/>',
-            ),
+            $.self_closing_style_tag,
+        ),
+        style_tag_start: $ => seq(
+            '<',
+            'style',
+            repeat($._attribute),
+            '>'
+        ),
+        style_tag_end: $ => seq(
+            '</',
+            'style',
+            '>',
+        ),
+        self_closing_style_tag: $ => seq(
+            '<',
+            'style',
+            repeat($._attribute),
+            '/>',
         ),
 
         _attribute: $ => choice(
@@ -404,9 +435,25 @@ module.exports = grammar(GO, {
             ),
         ),
 
+        // rawgo block
+        // https://templ.guide/syntax-and-usage/raw-go
+        // Example:
+        // package main
+        //
+        // templ nameList(items []Item) {
+        //     {{ first := items[0] }}
+        //     <p>
+        //         { first.Name }
+        //     </p>
+        // }
+        rawgo_block: $ => seq(
+            '{{',
+            optional($._statement_list),
+            '}}',
+        ),
+
         //
 
-        identifier: $ => /[a-zA-Z0-9_]+/,
         package_identifier: $ => alias($.identifier, $.package_identifier),
         _component_identifier: $ => alias($.identifier, $.component_identifier),
         _css_identifier: $ => alias($.identifier, $.css_identifier),
@@ -416,7 +463,7 @@ module.exports = grammar(GO, {
 
         // Taken from https://github.com/tree-sitter/tree-sitter-html/blob/master/grammar.js
         attribute_name: _ => /[^<>"'/=\s]+/,
-        attribute_value: _ => /[^<>"'=\s]+/,
+        attribute_value: _ => /[^{}<>"'=\s]+/,
         quoted_attribute_value: $ => choice(
             seq('\'', optional(alias(/[^']+/, $.attribute_value)), '\''),
             seq('"', optional(alias(/[^"]+/, $.attribute_value)), '"'),

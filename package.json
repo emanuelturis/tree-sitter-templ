@@ -1,15 +1,15 @@
 {
   "name": "tree-sitter-templ",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "tree-sitter parser for templ files (https://templ.guide)",
   "main": "gramma.js",
   "types": "bindings/node",
   "author": "Vincent Rischmann",
   "license": "MIT",
   "dependencies": {
-    "tree-sitter-go": "^0.21.0",
-    "node-addon-api": "^8.0.0",
-    "node-gyp-build": "^4.8.1"
+    "tree-sitter-go": "^0.23.4",
+    "node-addon-api": "^8.3.0",
+    "node-gyp-build": "^4.8.4"
   },
   "peerDependencies": {
     "tree-sitter": "^0.21.0"
@@ -20,22 +20,8 @@
     }
   },
   "devDependencies": {
-    "tree-sitter-cli": "^0.22.6",
+    "tree-sitter-cli": "^0.24.4",
     "prebuildify": "^6.0.1"
-  },
-  "tree-sitter": [
-    {
-      "scope": "source.templ",
-      "file-types": [
-        "templ"
-      ],
-      "highlights": "queries/templ/highlights.scm",
-      "injections": "queries/templ/injections.scm"
-    }
-  ],
-  "scripts": {
-    "install": "node-gyp-build",
-    "prebuildify": "prebuildify --napi --strip"
   },
   "files": [
     "grammar.js",
@@ -44,5 +30,12 @@
     "bindings/node/*",
     "queries/*",
     "src/**"
-  ]
+  ],
+  "scripts": {
+    "install": "node-gyp-build",
+    "prestart": "tree-sitter build --wasm",
+    "start": "tree-sitter playground",
+    "test": "node --test bindings/node/*_test.js",
+    "prebuildify": "prebuildify --napi --strip"
+  }
 }
