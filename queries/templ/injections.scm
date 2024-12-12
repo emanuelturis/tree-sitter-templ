@@ -1,4 +1,5 @@
 ; https://github.com/nvim-treesitter/nvim-treesitter/blob/master/queries/templ/injections.scm
+
 ; inherits: go
 
 ((element_comment) @injection.content

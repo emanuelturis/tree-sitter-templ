@@ -1,4 +1,5 @@
 ; https://github.com/nvim-treesitter/nvim-treesitter/blob/master/queries/templ/highlights.scm
+
 ; inherits: go
 
 (component_declaration
@@ -8,9 +9,7 @@
   (tag_start)
   (tag_end)
   (self_closing_tag)
-  (style_tag_start)
-  (style_tag_end)
-  (self_closing_style_tag)
+  (style_element)
 ] @tag
 
 (doctype) @constant
@@ -43,8 +42,6 @@
   name: (component_identifier) @function)
 
 (component_render) @function.call
-
-(element_identifier) @tag.identifier
 
 (element_comment) @comment @spell
 
